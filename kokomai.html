@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>GUN.js チャット</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    #chat {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 300px;
+      overflow-y: scroll;
+      background: #f9f9f9;
+    }
+    .message {
+      margin: 5px 0;
+      padding: 5px;
+      background: #e0f7fa;
+      border-radius: 5px;
+    }
+    #form {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>GUN.js チャット</h2>
+
+<div id="chat"></div>
+
+<form id="form">
+  <input type="text" id="messageInput" placeholder="メッセージを入力..." required>
+  <button type="submit">送信</button>
+</form>
+
+<script>
+  // GUNインスタンス作成（デフォルトでブラウザP2P接続）
+  const gun = Gun();
+
+  const chat = document.getElementById('chat');
+  const form = document.getElementById('form');
+  const input = document.getElementById('messageInput');
+
+  // メッセージを送信
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (text) {
+      gun.get('chat').set({
+        message: text,
+        time: Date.now()
+      });
+      input.value = '';
+    }
+  });
+
+  // メッセージを受信
+  gun.get('chat').map().on(function (data, id) {
+    if (!data || !data.message) return;
+    const div = document.createElement('div');
+    div.className = 'message';
+    div.textContent = new Date(data.time).toLocaleTimeString() + "： " + data.message;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  });
+</script>
+
+</body>
+</html>
