@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>GUN.js チャット</title>
+  <title>GUN.js チャット（削除機能付き）</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <style>
     body {
@@ -21,6 +21,18 @@
       padding: 5px;
       background: #e0f7fa;
       border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .text {
+      flex-grow: 1;
+    }
+    .delete-btn {
+      margin-left: 10px;
+      cursor: pointer;
+      color: red;
+      font-weight: bold;
     }
     #form {
       margin-top: 10px;
@@ -29,7 +41,7 @@
 </head>
 <body>
 
-<h2>GUN.js チャット</h2>
+<h2>GUN.js チャット（削除機能付き）</h2>
 
 <div id="chat"></div>
 
@@ -39,12 +51,16 @@
 </form>
 
 <script>
-  // GUNインスタンス作成（デフォルトでブラウザP2P接続）
+  // GUN初期化
   const gun = Gun();
 
   const chat = document.getElementById('chat');
   const form = document.getElementById('form');
   const input = document.getElementById('messageInput');
+
+  // 自分専用の一意なID（削除判定に使用）
+  const myID = sessionStorage.getItem('myID') || crypto.randomUUID();
+  sessionStorage.setItem('myID', myID);
 
   // メッセージを送信
   form.addEventListener('submit', function (e) {
@@ -53,18 +69,48 @@
     if (text) {
       gun.get('chat').set({
         message: text,
-        time: Date.now()
+        time: Date.now(),
+        sender: myID
       });
       input.value = '';
     }
   });
 
-  // メッセージを受信
+  // メッセージ表示（リアルタイム受信）
   gun.get('chat').map().on(function (data, id) {
-    if (!data || !data.message) return;
+    if (!data) {
+      // メッセージが削除されたら要素も削除
+      const msg = document.getElementById(id);
+      if (msg) msg.remove();
+      return;
+    }
+    if (!data.message) return;
+
+    // すでに表示されていればスキップ
+    if (document.getElementById(id)) return;
+
     const div = document.createElement('div');
     div.className = 'message';
-    div.textContent = new Date(data.time).toLocaleTimeString() + "： " + data.message;
+    div.id = id;
+
+    const span = document.createElement('span');
+    span.className = 'text';
+    span.textContent = new Date(data.time).toLocaleTimeString() + "： " + data.message;
+
+    div.appendChild(span);
+
+    // 自分のメッセージなら削除ボタン追加
+    if (data.sender === myID) {
+      const del = document.createElement('span');
+      del.className = 'delete-btn';
+      del.textContent = '🗑';
+      del.title = 'このメッセージを削除';
+      del.onclick = () => {
+        gun.get('chat').get(id).put(null); // GUNで削除
+      };
+      div.appendChild(del);
+    }
+
     chat.appendChild(div);
     chat.scrollTop = chat.scrollHeight;
   });
